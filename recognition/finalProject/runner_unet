@@ -6,7 +6,8 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=4         # Request 4 CPUs (for 4 data loader workers)
-#SBATCH --gres=gpu:a100           # Request one A100 GPU (from the guide's example)
+#SBATCH --gres=gpu:a100           
+#SBATCH --time=04:00:00
 #SBATCH --job-name=oasis_unet     # A name for your job
 #SBATCH -o oasis_unet_%j.out      # Saves all print output
 #SBATCH -e oasis_unet_%j.err      # Saves all errors
