@@ -1,0 +1,24 @@
+#!/bin/bash
+
+# --- Resource Requests ---
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=4         # Request more CPUs for data loading
+#SBATCH --gres=gpu:a100:1       # Request one A100 GPU
+#SBATCH --mem=32G                 # Request 32GB of RAM
+#SBATCH --job-name=oasis_unet     # A name for your job
+#SBATCH -o oasis_unet_%j.out      # Saves all print output to a file
+#SBATCH -e oasis_unet_%j.err      # Saves all errors to a file
+
+# --- Your Commands ---
+echo "Starting job $SLURM_JOB_ID on $(hostname)"
+
+# Activate the conda environment
+# (Assuming your env is named 'torch' from the rangpur guide)
+source ~/miniconda3/bin/activate torch
+
+# Run your main training script
+# This will train the model, validate it, and save the best checkpoint
+python train.py
+
+echo "Job finished"
