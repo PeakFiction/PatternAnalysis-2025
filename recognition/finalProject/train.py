@@ -2,8 +2,6 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
-from sklearn.model_selection import train_test_split
-import glob
 import os
 import numpy as np
 
@@ -15,11 +13,9 @@ from utils import DiceLoss, dice_coefficient, TverskyLoss
 # --- Configuration ---
 DATA_PATH = "/home/groups/comp3710/OASIS"
 BATCH_SIZE = 8
-NUM_WORKERS = 4  # Number of CPU cores to use for data loading
-EPOCHS = 100       # 0.9 Dice is hard, will need many epochs
+NUM_WORKERS = 4  # Number of CPU cores to use for data loading (from runner script)
+EPOCHS = 100
 LEARNING_RATE = 1e-4
-VAL_SPLIT = 0.2    # 20% of data for validation
-RANDOM_SEED = 42
 MODEL_SAVE_PATH = "best_oasis_unet.pth"
 
 def main():
@@ -31,27 +27,18 @@ def main():
     print(f"Using device: {device}")
     
     # --- Data Loading ---
-    # Find all image files to create a train/val split
+    # We now use the pre-defined splits by loading 'train' and 'validate' modes
     try:
-        all_files = sorted(glob.glob(f"{DATA_PATH}/images/*.nii.gz"))
-        if not all_files:
-            print(f"CRITICAL ERROR: No image files found in {DATA_PATH}/images/")
-            print("Please check the path and directory structure.")
-            return
+        train_dataset = OASISDataset(DATA_PATH, mode='train', transform=transform)
+        val_dataset = OASISDataset(DATA_PATH, mode='validate', transform=val_transform)
         
-        indices = np.arange(len(all_files))
+        print(f"Training files: {len(train_dataset)}")
+        print(f"Validation files: {len(val_dataset)}")
         
-        train_indices, val_indices = train_test_split(
-            indices, test_size=VAL_SPLIT, random_state=RANDOM_SEED
-        )
-        
-        print(f"Total files: {len(all_files)}")
-        print(f"Training files: {len(train_indices)}")
-        print(f"Validation files: {len(val_indices)}")
-        
-        train_dataset = OASISDataset(DATA_PATH, file_list=train_indices, transform=transform)
-        val_dataset = OASISDataset(DATA_PATH, file_list=val_indices, transform=val_transform)
-        
+        if len(train_dataset) == 0 or len(val_dataset) == 0:
+             print("CRITICAL ERROR: Train or validation dataset is empty. Check paths and permissions.")
+             return
+
         train_loader = DataLoader(
             train_dataset, 
             batch_size=BATCH_SIZE, 
@@ -75,13 +62,11 @@ def main():
     model = ImprovedUNet(n_channels=1, n_classes=1).to(device)
     
     # A combined loss is best for segmentation
-    # BCE is good for pixel-wise stability
     loss_bce = nn.BCEWithLogitsLoss()
-    # Dice loss is good for handling class imbalance (small brain vs large background)
     loss_dice = DiceLoss()
     
     optimizer = optim.AdamW(model.parameters(), lr=LEARNING_RATE)
-    scaler = torch.cuda.amp.GradScaler() # For mixed-precision training (faster, less memory)
+    scaler = torch.cuda.amp.GradScaler() # For mixed-precision training
     
     best_val_dice = 0.0 # Track the best score
 
@@ -157,3 +142,4 @@ def evaluate(model, loader, loss_bce, loss_dice, device):
 
 if __name__ == "__main__":
     main()
+

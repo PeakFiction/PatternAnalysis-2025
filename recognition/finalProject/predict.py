@@ -1,11 +1,11 @@
 import torch
-import nibabel as nib
+import cv2 # Use OpenCV
 import numpy as np
 import glob
 import os
 from modules import ImprovedUNet
 from dataset import val_transform # Use the validation transform (no augmentation)
-from scipy.ndimage import zoom # Make sure scipy is installed
+import albumentations as A
 
 # --- Configuration ---
 DATA_PATH = "/home/groups/comp3710/OASIS"
@@ -30,36 +30,29 @@ def predict():
         
     model.eval() # Set model to evaluation mode
 
-    # Find a few test images
-    # Let's just grab the first 5 images from the main images folder
-    test_image_files = sorted(glob.glob(f"{DATA_PATH}/images/*.nii.gz"))[:5]
+    # Find test images from the 'test' directory
+    test_image_dir = os.path.join(DATA_PATH, 'keras_png_slices_test')
+    test_image_files = sorted(glob.glob(os.path.join(test_image_dir, '*.png')))
     
     if not test_image_files:
-        print(f"No test images found in {DATA_PATH}/images/")
+        print(f"No test images found in {test_image_dir}")
         return
 
-    print(f"Running predictions on {len(test_image_files)} images...")
+    print(f"Running predictions on {len(test_image_files)} test images...")
 
     with torch.no_grad():
         for img_path in test_image_files:
             try:
                 # --- Load and Preprocess ---
-                img_nib = nib.load(img_path)
-                img_data = img_nib.get_fdata().astype(np.float32)
+                image = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
+                if image is None:
+                    raise IOError(f"Failed to load image: {img_path}")
                 
-                # Save original affine/header to save the prediction correctly
-                original_affine = img_nib.affine
-                original_header = img_nib.header
-
-                # Ensure data is 2D
-                if img_data.ndim == 3 and img_data.shape[2] == 1:
-                    img_data = img_data[..., 0]
-                
-                original_shape = (img_data.shape[0], img_data.shape[1])
+                image_data = image.astype(np.float32)
+                original_shape = image.shape # (H, W)
                 
                 # Apply the same transformations as validation (resize, normalize, to_tensor)
-                # Note: 'mask' isn't needed here, so we just pass the image
-                augmented = val_transform(image=img_data)
+                augmented = val_transform(image=image_data)
                 image_tensor = augmented['image'].to(DEVICE)
                 
                 # Add batch dimension (B, C, H, W) -> (1, 1, 256, 256)
@@ -69,30 +62,29 @@ def predict():
                 logits = model(image_tensor)
                 
                 # --- Post-process ---
-                # Apply sigmoid to get probabilities
                 probs = torch.sigmoid(logits)
-                # Threshold at 0.5 to get binary mask
                 pred_mask = (probs > 0.5).float()
                 
                 # Move to CPU, remove batch/channel dims, convert to numpy
-                pred_mask_np = pred_mask.squeeze().cpu().numpy()
+                pred_mask_np = pred_mask.squeeze().cpu().numpy() # (256, 256)
                 
                 # --- Save Prediction ---
-                # We need to resize the mask back to the original image size
-                # (The val_transform resized it to 256x256)
-                zoom_factors = (original_shape[0] / 256, original_shape[1] / 256)
-                pred_mask_resized = zoom(pred_mask_np, zoom_factors, order=0) # order=0 is nearest neighbor
+                # Resize the mask back to the original image size
+                # We use OpenCV's resize with nearest neighbor interpolation
+                pred_mask_resized = cv2.resize(
+                    pred_mask_np, 
+                    (original_shape[1], original_shape[0]), # (W, H) for cv2
+                    interpolation=cv2.INTER_NEAREST
+                )
                 
-                # Ensure it's integer type for segmentation mask
-                pred_mask_resized = pred_mask_resized.astype(np.uint8)
+                # Ensure it's a 0-255 grayscale image for saving as PNG
+                pred_mask_png = (pred_mask_resized * 255).astype(np.uint8)
 
                 # Create a new Nifti image
                 base_name = os.path.basename(img_path)
                 output_name = os.path.join(OUTPUT_DIR, f"pred_{base_name}")
                 
-                pred_nib = nib.Nifti1Image(pred_mask_resized, original_affine, original_header)
-                nib.save(pred_nib, output_name)
-                
+                cv2.imwrite(output_name, pred_mask_png)
                 print(f"  Saved prediction to {output_name}")
             
             except Exception as e:

@@ -1,14 +1,14 @@
 import torch
 from torch.utils.data import Dataset
 import glob
-import nibabel as nib
+import cv2  # Use OpenCV to load PNG images
 import numpy as np
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
+import os
 
 # --- Albumentations Augmentation Pipeline ---
-# Data augmentation is CRITICAL for reaching a 0.9 Dice score.
-# This pipeline applies strong transformations.
+# This pipeline is strong to help reach the Dice target
 transform = A.Compose([
     A.RandomRotate90(p=0.5),
     A.Flip(p=0.5),
@@ -30,26 +30,40 @@ class OASISDataset(Dataset):
     """
     PyTorch Dataset class for loading the 2D OASIS brain dataset.
     
-    Assumes the data is in /home/groups/comp3710/OASIS/
-    with subdirectories 'images' and 'labels'
-    e.g., /home/groups/comp3710/OASIS/images/oasis_..._t1w.nii.gz
-          /home/groups/comp3710/OASIS/labels/oasis_..._seg.nii.gz
+    This version loads the PNG slices from the 'keras_png_slices_*' directories.
     """
-    def __init__(self, data_path, file_list, transform=None):
+    def __init__(self, data_path, mode='train', transform=None):
+        """
+        Args:
+            data_path (str): The path to the main OASIS directory, 
+                             e.g., /home/groups/comp3710/OASIS
+            mode (str): 'train', 'validate', or 'test' to load the correct dataset.
+            transform (callable, optional): Albumentations transform to be applied.
+        """
         self.transform = transform
-        # Assumes image and label files share a common identifier
-        # and are stored in respective folders.
-        self.image_files = sorted(glob.glob(f"{data_path}/images/*.nii.gz"))
-        self.label_files = sorted(glob.glob(f"{data_path}/labels/*.nii.gz"))
-
-        # Use the provided file_list (indices) to select files for this dataset (train or val)
-        self.image_files = [self.image_files[i] for i in file_list]
-        self.label_files = [self.label_files[i] for i in file_list]
+        
+        # Set paths based on the mode
+        if mode == 'train':
+            self.image_dir = os.path.join(data_path, 'keras_png_slices_train')
+            self.label_dir = os.path.join(data_path, 'keras_png_slices_seg_train')
+        elif mode == 'validate':
+            self.image_dir = os.path.join(data_path, 'keras_png_slices_validate')
+            self.label_dir = os.path.join(data_path, 'keras_png_slices_seg_validate')
+        elif mode == 'test':
+            self.image_dir = os.path.join(data_path, 'keras_png_slices_test')
+            self.label_dir = os.path.join(data_path, 'keras_png_slices_seg_test')
+        
+        # Get all filenames
+        self.image_files = sorted(glob.glob(os.path.join(self.image_dir, '*.png')))
+        self.label_files = sorted(glob.glob(os.path.join(self.label_dir, '*.png')))
 
         if not self.image_files or not self.label_files:
-            print(f"Warning: No files found in {data_path}/images or {data_path}/labels.")
-            print(f"Searched for: {data_path}/images/*.nii.gz")
-            
+            print(f"Warning: No files found in {self.image_dir} or {self.label_dir}.")
+        
+        # Ensure the number of images and labels match
+        assert len(self.image_files) == len(self.label_files), \
+            f"Mismatch in file count: {len(self.image_files)} images, {len(self.label_files)} labels"
+
     def __len__(self):
         return len(self.image_files)
 
@@ -57,23 +71,20 @@ class OASISDataset(Dataset):
         try:
             # --- Load Image ---
             img_path = self.image_files[idx]
-            # Load Nifti file using nibabel
-            image_nib = nib.load(img_path)
-            # Get the image data as a numpy array
-            image = image_nib.get_fdata().astype(np.float32)
-            
+            # Load image using OpenCV. cv2.IMREAD_GRAYSCALE loads it as a 2D (H, W) array.
+            image = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
+            if image is None:
+                raise IOError(f"Failed to load image: {img_path}")
+            image = image.astype(np.float32)
+
             # --- Load Label ---
             label_path = self.label_files[idx]
-            label_nib = nib.load(label_path)
-            label = label_nib.get_fdata().astype(np.float32)
+            label = cv2.imread(label_path, cv2.IMREAD_GRAYSCALE)
+            if label is None:
+                raise IOError(f"Failed to load label: {label_path}")
+            label = label.astype(np.float32)
             
-            # Ensure data is 2D (as per Appendix B logic)
-            if image.ndim == 3 and image.shape[2] == 1:
-                image = image[..., 0]
-            if label.ndim == 3 and label.shape[2] == 1:
-                label = label[..., 0]
-                
-            # Binarize label (assuming 0 is background, >0 is brain)
+            # Binarize label (making sure 0 is background, >0 is brain)
             label = (label > 0).astype(np.float32)
 
             # Apply augmentations
@@ -97,19 +108,23 @@ if __name__ == "__main__":
     # python dataset.py
     
     DATA_PATH = "/home/groups/comp3710/OASIS"
-    # Test with all files (indices 0 to 9)
-    test_indices = list(range(10)) 
     
-    dataset = OASISDataset(DATA_PATH, file_list=test_indices, transform=transform)
+    print("Testing 'train' dataset...")
+    train_dataset = OASISDataset(DATA_PATH, mode='train', transform=transform)
     
-    if len(dataset) > 0:
-        print(f"Successfully loaded {len(dataset)} files.")
-        img, label = dataset[0]
-        print(f"Image shape: {img.shape}")   # Should be [1, 256, 256]
+    if len(train_dataset) > 0:
+        print(f"Successfully loaded {len(train_dataset)} training files.")
+        img, label = train_dataset[0]
+        print(f"Image shape: {img.shape}")  # Should be [1, 256, 256]
         print(f"Label shape: {label.shape}") # Should be [1, 256, 256]
-        print(f"Image dtype: {img.dtype}")
-        print(f"Label dtype: {label.dtype}")
-        print(f"Image min/max: {img.min()}, {img.max()}")
         print(f"Label unique values: {torch.unique(label)}")
     else:
-        print("Dataset test failed: No files were loaded.")
+        print("Train dataset test failed: No files were loaded.")
+
+    print("\nTesting 'validate' dataset...")
+    val_dataset = OASISDataset(DATA_PATH, mode='validate', transform=val_transform)
+    if len(val_dataset) > 0:
+        print(f"Successfully loaded {len(val_dataset)} validation files.")
+    else:
+        print("Validation dataset test failed.")
+
