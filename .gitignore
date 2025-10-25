@@ -1,4 +1,2 @@
 *.pth
 __pycache__/
-*.err
-*.out
