@@ -1,0 +1,27 @@
+#!/bin/bash
+
+# --- Resource Requests ---
+# Testing is fast, 20 mins is more than enough.
+
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=4
+#SBATCH --gres=gpu:a100
+#SBATCH --time=00:20:00
+#SBATCH --job-name=hipmri_test
+#SBATCH -o hipmri_test_%j.out
+#SBATCH -e hipmri_test_%j.err
+
+# --- Your Commands ---
+echo "Starting TEST job $SLURM_JOB_ID on $(hostname)"
+echo "Loading Conda environment..."
+
+# Activate the conda environment
+source ~/miniconda3/bin/activate torch
+
+echo "Conda environment activated. Running Python TEST script..."
+
+# Run your new test script
+python test.py
+
+echo "Test job finished"

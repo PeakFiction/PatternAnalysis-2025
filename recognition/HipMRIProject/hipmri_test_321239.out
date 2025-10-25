@@ -1,0 +1,22 @@
+Starting TEST job 321239 on a100-a
+Loading Conda environment...
+Conda environment activated. Running Python TEST script...
+Using device: cuda
+Loading test dataset...
+Found 540 test images.
+Loading best model from best_hipmri_unet.pth...
+Running final test on test set...
+
+--- Final Test Results ---
+Average Dice Scores per class:
+  BG: 0.9971
+  Body: 0.9849
+  Bone: 0.9296
+  Bladder: 0.9355
+  Rectum: 0.8626
+  Prostate: 0.8362
+
+**Final Prostate Dice on Test Set: 0.8362**
+
+Congratulations! Project requirement MET. 
+Test job finished

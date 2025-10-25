@@ -1,0 +1,29 @@
+#!/bin/bash
+
+# --- Resource Requests ---
+# Setting time limit to 20 minutes as required.
+# Removing --mem request to use the partition's default.
+
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=4         # Request 4 CPUs (for 4 data loader workers)
+#SBATCH --gres=gpu:a100           # Request one A100 GPU
+#SBATCH --time=00:20:00           # 20-minute time limit
+#SBATCH --job-name=hipmri_unet    # A name for your job
+#SBATCH -o hipmri_unet_%j.out     # Saves all print output
+#SBATCH -e hipmri_unet_%j.err     # Saves all errors
+
+# --- Your Commands ---
+echo "Starting job $SLURM_JOB_ID on $(hostname)"
+echo "Loading Conda environment..."
+
+# Activate the conda environment
+source ~/miniconda3/bin/activate torch
+
+echo "Conda environment activated. Running Python script..."
+
+# Run your main training script
+# This will train the model, validate it, and save the best checkpoint
+python train.py
+
+echo "Job finished"

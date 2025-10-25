@@ -1,0 +1,35 @@
+Starting job 321217 on a100-b
+Loading Conda environment...
+Conda environment activated. Running Python script...
+Using device: cuda
+Loading datasets...
+Found 11460 train images and 660 validation images.
+Initializing model...
+Starting training for 25 epochs...
+Epoch [1/25] | Train Loss: 0.2175 | Val Loss: 0.0829 | Val Prostate Dice: 0.7716
+  -> New best model saved to best_hipmri_unet.pth (Dice: 0.7716)
+Epoch [2/25] | Train Loss: 0.0538 | Val Loss: 0.0757 | Val Prostate Dice: 0.7891
+  -> New best model saved to best_hipmri_unet.pth (Dice: 0.7891)
+Epoch [3/25] | Train Loss: 0.0401 | Val Loss: 0.0735 | Val Prostate Dice: 0.7930
+  -> New best model saved to best_hipmri_unet.pth (Dice: 0.7930)
+Epoch [4/25] | Train Loss: 0.0348 | Val Loss: 0.0805 | Val Prostate Dice: 0.8065
+  -> New best model saved to best_hipmri_unet.pth (Dice: 0.8065)
+Epoch [5/25] | Train Loss: 0.0294 | Val Loss: 0.0810 | Val Prostate Dice: 0.8026
+Epoch [6/25] | Train Loss: 0.0260 | Val Loss: 0.0788 | Val Prostate Dice: 0.8090
+  -> New best model saved to best_hipmri_unet.pth (Dice: 0.8090)
+Epoch [7/25] | Train Loss: 0.0258 | Val Loss: 0.0755 | Val Prostate Dice: 0.7993
+Epoch [8/25] | Train Loss: 0.0217 | Val Loss: 0.0875 | Val Prostate Dice: 0.8005
+Epoch [9/25] | Train Loss: 0.0201 | Val Loss: 0.0892 | Val Prostate Dice: 0.7872
+Epoch [10/25] | Train Loss: 0.0202 | Val Loss: 0.0668 | Val Prostate Dice: 0.7815
+Epoch [11/25] | Train Loss: 0.0189 | Val Loss: 0.0953 | Val Prostate Dice: 0.8171
+  -> New best model saved to best_hipmri_unet.pth (Dice: 0.8171)
+Epoch [12/25] | Train Loss: 0.0170 | Val Loss: 0.0930 | Val Prostate Dice: 0.8145
+Epoch [13/25] | Train Loss: 0.0167 | Val Loss: 0.1044 | Val Prostate Dice: 0.8006
+Epoch [14/25] | Train Loss: 0.0159 | Val Loss: 0.0979 | Val Prostate Dice: 0.7910
+Epoch [15/25] | Train Loss: 0.0168 | Val Loss: 0.1033 | Val Prostate Dice: 0.7990
+Epoch [16/25] | Train Loss: 0.0147 | Val Loss: 0.0963 | Val Prostate Dice: 0.8031
+Epoch [17/25] | Train Loss: 0.0141 | Val Loss: 0.1026 | Val Prostate Dice: 0.7996
+Epoch [18/25] | Train Loss: 0.0138 | Val Loss: 0.1025 | Val Prostate Dice: 0.7794
+Epoch [19/25] | Train Loss: 0.0135 | Val Loss: 0.1095 | Val Prostate Dice: 0.7715
+Epoch [20/25] | Train Loss: 0.0131 | Val Loss: 0.1156 | Val Prostate Dice: 0.8058
+Epoch [21/25] | Train Loss: 0.0128 | Val Loss: 0.1181 | Val Prostate Dice: 0.7974
