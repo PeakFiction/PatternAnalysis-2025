@@ -1,0 +1,14 @@
+Traceback (most recent call last):
+  File "/home/Student/s4906358/finalProject/PatternAnalysis-2025/recognition/finalProject/train.py", line 11, in <module>
+    from dataset import OASISDataset, transform, val_transform
+  File "/home/Student/s4906358/finalProject/PatternAnalysis-2025/recognition/finalProject/dataset.py", line 6, in <module>
+    import albumentations as A
+  File "/home/Student/s4906358/miniconda3/envs/torch/lib/python3.11/site-packages/albumentations/__init__.py", line 6, in <module>
+    from .augmentations import *
+  File "/home/Student/s4906358/miniconda3/envs/torch/lib/python3.11/site-packages/albumentations/augmentations/__init__.py", line 1, in <module>
+    from .blur.functional import *
+  File "/home/Student/s4906358/miniconda3/envs/torch/lib/python3.11/site-packages/albumentations/augmentations/blur/__init__.py", line 1, in <module>
+    from .functional import *
+  File "/home/Student/s4906358/miniconda3/envs/torch/lib/python3.11/site-packages/albumentations/augmentations/blur/functional.py", line 9, in <module>
+    from albucore.utils import clipped, maybe_process_in_chunks, preserve_channel_dim
+ImportError: cannot import name 'preserve_channel_dim' from 'albucore.utils' (/home/Student/s4906358/miniconda3/envs/torch/lib/python3.11/site-packages/albucore/utils.py)

@@ -1,0 +1,9 @@
+Starting job 320813 on a100-a
+Loading Conda environment...
+Conda environment activated. Running Python script...
+Starting OASIS UNet training...
+Data path: /home/groups/comp3710/OASIS
+Using device: cuda
+CRITICAL ERROR: No image files found in /home/groups/comp3710/OASIS/images/
+Please check the path and directory structure.
+Job finished
