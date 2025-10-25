@@ -1,96 +1,143 @@
-Project: 2D OASIS Brain Segmentation with an Improved UNet
+# 2D OASIS Brain Segmentation with an Improved UNet
 
-Author: (Your Name / sID)
-Task: 1.3.1 (Easy Difficulty)
+**Author:** Muhammad Sakhran Thayyib / s49063581
+**Task:** 1.3.1 (Easy Difficulty)
 
-1. Problem Description
+---
 
-This project aims to solve the 2D brain segmentation task for the OASIS dataset, as specified in the COMP3710 Pattern Analysis assignment. The goal is to create a model based on an "Improved UNet" architecture that can accurately segment the brain from T1-weighted MRI scans. The target metric is a minimum Dice Similarity Coefficient (DSC) of 0.9 on the test set.
+## 1) Problem Description
 
-2. Algorithm and Implementation
+This project addresses 2D brain segmentation on the OASIS dataset (COMP3710 Task 1.3.1). Objective: train an **Improved UNet** to segment brain regions from 2D T1-weighted MRI slices. Required benchmark: **Dice Similarity Coefficient (DSC) ≥ 0.9** on the test set.
 
-Model Architecture
+---
 
-The model implemented in modules.py is an Improved UNet. The key improvements over a standard UNet are:
+## 2) Algorithm and Implementation
 
-Residual Blocks: Each convolutional block (ConvBlock) includes a residual (skip) connection. This helps with gradient flow and allows for a deeper network to be trained effectively.
+### Model Architecture
 
-Instance Normalization: InstanceNorm2d is used instead of BatchNorm2d. Instance Norm is common in image-to-image tasks (like segmentation and style transfer) as it normalizes features per-channel, per-sample, which is beneficial when batch statistics are not representative (e.g., small batch sizes).
+Core model in `modules.py`: **Improved UNet** with the following enhancements:
 
-Deep Architecture: The model has 5 levels, downsampling to a 1024-channel bottleneck, providing a large receptive field to capture global context.
+* **Residual Blocks:** `ConvBlock` uses residual connections to improve gradient flow and enable deeper training.
+* **Instance Normalization:** `InstanceNorm2d` normalizes per channel, per sample; stabilizes training for image-to-image tasks and small batch sizes.
+* **Deep Architecture:** 5 down/upsampling levels with a **1024-channel bottleneck** for large receptive field and strong global context.
 
-Data Loading and Preprocessing
+### Data Loading and Preprocessing
 
-The dataset.py script handles loading and preparing the data:
+Handled by `dataset.py`:
 
-Path: It reads data from the shared Rangpur directory: /home/groups/comp3710/OASIS.
+* **Data Source:** `/home/groups/comp3710/OASIS`
+* **Format:** Pre-split 2D PNGs
 
-Loading: It uses nibabel to load .nii.gz files.
+  * Images: `keras_png_slices_train/`, `keras_png_slices_validate/`, `keras_png_slices_test/`
+  * Masks: e.g., `keras_png_slices_seg_train/` (matching splits for validation/test)
+* **Loading:** OpenCV (`cv2`)
+* **Preprocessing:**
 
-Preprocessing: Labels are binarized (all non-zero values are mapped to 1). All images and masks are resized to a uniform 256x256.
+  * Masks binarized (background=0, brain=1)
+  * Images and masks resized to **256×256**
+  * **Normalization:** map input intensities to **[-1, 1]** with mean=0.5, std=0.5
 
-Normalization: Images are normalized to a [-1, 1] range (mean=0.5, std=0.5).
+### Training
 
-Training
+Orchestrated by `train.py`:
 
-Training is defined in train.py:
+* **Loss:** `BCEWithLogitsLoss` + **DiceLoss** → `L_total = L_bce + L_dice`
+* **Optimizer:** `AdamW`, `lr = 1e-4`
+* **Mixed Precision:** `torch.cuda.amp`
+* **Augmentation (Albumentations):**
 
-Loss Function: A combined loss of Binary Cross-Entropy (BCE) with Logits and Dice Loss is used. L_total = L_bce + L_dice. This combination provides pixel-level stability (from BCE) and addresses class imbalance (from Dice), which is standard for high-performance segmentation.
+  * Random H/V flips and 90° rotations
+  * Random shift/scale/rotate
+  * Elastic transforms
+* **Validation & Checkpointing:** Evaluate each epoch on `keras_png_slices_validate/`; save best model to **`best_oasis_unet.pth`**. Logs in `oasis_unet_*.out`.
 
-Optimizer: AdamW is used with a learning rate of 1e-4.
+---
 
-Augmentation: To achieve the 0.9 Dice target, heavy data augmentation is critical. The albumentations library is used for:
+## 3) Dependencies
 
-Random Flips & Rotations
+Conda env (Python 3.11).
 
-Shift, Scale, Rotate
+```bash
+# Activate env
+source ~/miniconda3/bin/activate torch
 
-Elastic Transformations
+# Ensure pip
+conda install -y pip
 
-Validation: The data is split into 80% training and 20% validation. The model checkpoint (best_oasis_unet.pth) is saved based on the highest validation Dice score.
+# PyTorch CUDA 11.8
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118 --no-cache-dir
 
-3. Dependencies
+# Other deps
+pip install scikit-learn scipy opencv-python-headless
+pip install "albumentations==1.3.1" "albucore==0.0.9"
 
-To run this project, the following packages must be installed in your Conda environment:
+# nibabel not required (working with PNGs)
+```
 
-# Activate your environment first: conda activate torch
-pip install torch torchvision torchaudio --index-url [https://download.pytorch.org/whl/cu118](https://download.pytorch.org/whl/cu118)
-pip install nibabel
-pip install scikit-learn
-pip install albumentations
-pip install scipy
+---
 
+## 4) How I Ran the Code
 
-4. How to Run the Code
+### 1) Submitted the training job
 
-1. Submit Training Job
+I placed all `.py` scripts and `runner_unet` in the project directory and submitted:
 
-To train the model, submit the job to the Slurm scheduler:
-
+```bash
 sbatch runner_unet
+```
 
+I monitored the job:
 
-This will start the training process on an A100 GPU. You can monitor its progress and see the output in the oasis_unet_*.out file.
+```bash
+squeue -u s49063581
+```
 
-2. Run Prediction
+The best validation checkpoint was saved as **`best_oasis_unet.pth`**.
 
-Once training is complete and you have a best_oasis_unet.pth file, you can run prediction on a few test images:
+### 2) Evaluated on the test set
 
+After training completed and `best_oasis_unet.pth` existed, I evaluated:
+
+```bash
+# (torch) env active
+python evaluate_test.py
+# or via Slurm
+sbatch runner_evaluate
+```
+
+This ran on `keras_png_slices_test/` and printed the average Dice.
+
+### 3) Generated predictions (optional visualization)
+
+I produced example masks with:
+
+```bash
+# (torch) env active
 python predict.py
+```
+
+It loaded `best_oasis_unet.pth`, segmented samples from `keras_png_slices_test/`, and wrote binary PNGs to `predictions/`.
 
 
-This will load the trained model, segment the first 5 images from the dataset, and save the results in the predictions/ directory.
+## 5) Results
 
-5. Results
+Training ran **10 epochs** before cancellation due to cluster time limit.
 
-(You must fill this section in after your model has trained)
+**Validation (Epoch 10, best):**
 
-After 100 epochs, the model achieved:
+| Metric              | Value  | Set        |
+| ------------------- | ------ | ---------- |
+| Best Dice Score     | 0.9926 | Validation |
+| Avg Training Loss   | 0.0346 | Training   |
+| Avg Validation Loss | 0.0193 | Validation |
 
-Final Training Loss: (Fill in)
+**Test (using best checkpoint from Epoch 10):**
 
-Best Validation Dice Score: (Fill in)
+| Metric             | Value  | Set  |
+| ------------------ | ------ | ---- |
+| Average Dice Score | 0.9919 | Test |
 
-(Include any plots of your loss/metrics here. You can add them to the README after downloading the .out file or using matplotlib to save plots during training).
+**Discussion:** Requirement ≥0.9 DSC on test. Achieved **0.9919** after 10 epochs. The Improved UNet, BCE+Dice loss, and augmentations were effective. High validation (0.9926) and test (0.9919) indicate strong generalization. Additional training unnecessary for the assignment target.
 
-(Briefly discuss if you met the 0.9 Dice target. If not, what could be improved? e.g., more epochs, different hyperparameters, Tversky loss, etc.)
+
+
