@@ -1,0 +1,9 @@
+Traceback (most recent call last):
+  File "/home/Student/s4906358/finalProject/PatternAnalysis-2025/recognition/ADNIProject/train.py", line 198, in <module>
+    main()
+  File "/home/Student/s4906358/finalProject/PatternAnalysis-2025/recognition/ADNIProject/train.py", line 33, in main
+    full_train_dataset = get_adni_dataset(mode='train')
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/Student/s4906358/finalProject/PatternAnalysis-2025/recognition/ADNIProject/dataset.py", line 56, in get_adni_dataset
+    raise FileNotFoundError(f"Dataset directory not found: {data_dir}")
+FileNotFoundError: Dataset directory not found: /home/groups/comp710/ADNI/AD_NC/train
