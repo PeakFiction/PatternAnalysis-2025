@@ -1,45 +1,45 @@
 import os
 from torchvision import datasets, transforms
-from torch.utils.data import DataLoader
 
 # --- Configuration ---
 DATA_ROOT = "/home/groups/comp3710/ADNI/AD_NC"
-IMAGE_SIZE = 224 # ConvNeXt standard input size
-# Standard ImageNet normalization values
-NORM_MEAN = [0.485, 0.456, 0.406]
-NORM_STD = [0.229, 0.224, 0.225]
+IMAGE_SIZE = 224  # ConvNeXt input size
+
+class PerImageZScore(object):
+    def __call__(self, tensor):
+        # tensor: C x H x W in [0,1]
+        mean = tensor.mean()
+        std = tensor.std()
+        return (tensor - mean) / (std + 1e-6)
 
 def get_adni_transforms(mode='train'):
     """
-    Returns the appropriate transforms.
-    Includes aggressive augmentation for the training set.
+    ADNI MRI are effectively grayscale. Force grayscale->3ch,
+    use per-image z-score; avoid ImageNet stats.
     """
     if mode == 'train':
         return transforms.Compose([
-            transforms.RandomResizedCrop(IMAGE_SIZE, scale=(0.7, 1.0)), # Allow cropping more area
-            transforms.RandomHorizontalFlip(p=0.5),
-            transforms.RandomRotation(30), # Increased rotation
-            transforms.RandomAffine(degrees=0, translate=(0.1, 0.1), shear=15), # Added shear/translation
-            transforms.ColorJitter(brightness=0.3, contrast=0.3, saturation=0.3, hue=0.15), # Increased jitter
+            transforms.Grayscale(num_output_channels=3),
+            transforms.RandomResizedCrop(IMAGE_SIZE, scale=(0.85, 1.0), ratio=(0.9, 1.1)),
+            transforms.RandomHorizontalFlip(p=0.5),      # left/right invariance
+            transforms.RandomRotation(10, fill=0),       # mild rotation only
             transforms.ToTensor(),
-            transforms.Normalize(mean=NORM_MEAN, std=NORM_STD)
+            PerImageZScore(),
         ])
-    else: # 'val' or 'test'
+    else:  # 'val' or 'test'
         return transforms.Compose([
+            transforms.Grayscale(num_output_channels=3),
             transforms.Resize(256),
             transforms.CenterCrop(IMAGE_SIZE),
             transforms.ToTensor(),
-            transforms.Normalize(mean=NORM_MEAN, std=NORM_STD)
+            PerImageZScore(),
         ])
 
 def get_adni_dataset(mode='train'):
     """
     Loads the ADNI dataset using ImageFolder.
-
-    Args:
-        mode (str): 'train', 'val', or 'test'
-    Returns:
-        torchvision.datasets.ImageFolder: The loaded dataset.
+    'val' uses the same directory as 'train' but eval transforms;
+    indices are split in train.py.
     """
     if mode == 'val':
         data_dir = os.path.join(DATA_ROOT, 'train')
@@ -47,7 +47,7 @@ def get_adni_dataset(mode='train'):
     elif mode == 'test':
         data_dir = os.path.join(DATA_ROOT, 'test')
         transform = get_adni_transforms('test')
-    else: # 'train'
+    else:  # 'train'
         data_dir = os.path.join(DATA_ROOT, 'train')
         transform = get_adni_transforms('train')
 
