@@ -1,14 +1,19 @@
+# modules.py
 import torch
 import torch.nn as nn
 import timm  # PyTorch Image Models
 
 def create_convnext_model(num_classes=2, pretrained=True):
     """
-    ConvNeXt-Tiny with a bit of stochastic depth for regularization.
+    ConvNeXt-Tiny with extra stochastic regularization and head dropout.
     """
-    model = timm.create_model('convnext_tiny', pretrained=pretrained, drop_path_rate=0.1)
+    model = timm.create_model('convnext_tiny', pretrained=pretrained, drop_path_rate=0.2)
     num_ftrs = model.head.fc.in_features
-    model.head.fc = nn.Linear(num_ftrs, num_classes)
+    # add dropout before classifier to reduce overconfidence on shift
+    model.head.fc = nn.Sequential(
+        nn.Dropout(p=0.2),
+        nn.Linear(num_ftrs, num_classes)
+    )
     print(f"Loaded ConvNeXt Tiny. Replaced classifier head for {num_classes} classes.")
     return model
 

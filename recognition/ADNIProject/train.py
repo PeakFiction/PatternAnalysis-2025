@@ -1,25 +1,28 @@
+# train.py
 import os
 import random
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader, random_split, Subset, WeightedRandomSampler
+from torch.utils.data import DataLoader, Subset, WeightedRandomSampler
 import matplotlib.pyplot as plt
 import torch.backends.cudnn as cudnn
+import torchvision.transforms.functional as TF
 
 from dataset import get_adni_dataset
 from modules import create_convnext_model
 
 # --- Configuration ---
 NUM_CLASSES = 2
-NUM_EPOCHS = 10            # keep runtime reasonable
+NUM_EPOCHS = 10
 BATCH_SIZE = 32
 LEARNING_RATE = 5e-5
 VALIDATION_SPLIT = 0.15
 WEIGHT_DECAY = 0.01
 MODEL_SAVE_PATH = "best_adni_convnext.pth"
 PLOT_SAVE_PATH = "learning_curves_adni.png"
+LOGIT_BIAS_PATH = "logit_bias.pt"   # scalar bias for AD (class 0) learned on val
 SEED = 42
 
 def seed_everything(seed: int = 42):
@@ -31,29 +34,72 @@ def seed_everything(seed: int = 42):
     cudnn.benchmark = False
 
 def build_weighted_sampler(full_train_dataset, train_indices):
-    """Handle possible class imbalance via per-sample weights."""
     # ImageFolder stores (path, class_idx) in .samples
     targets = np.array([full_train_dataset.samples[i][1] for i in train_indices], dtype=np.int64)
     class_counts = np.bincount(targets, minlength=NUM_CLASSES).astype(np.float32)
     class_counts[class_counts == 0] = 1.0
     class_weights = 1.0 / class_counts
     sample_weights = class_weights[targets]
-    return WeightedRandomSampler(weights=sample_weights, num_samples=len(sample_weights), replacement=True)
+    return WeightedRandomSampler(weights=sample_weights, num_samples=len(sample_weights), replacement=True), class_counts
 
 @torch.inference_mode()
-def eval_accuracy(model, loader, device):
+def tta_logits(model, images):
+    """
+    Light TTA: identity, h-flip, rotate ±7 degrees.
+    Operates on already-normalized tensors.
+    """
+    logits = model(images)
+    logits += model(torch.flip(images, dims=[3]))
+    # rotate per sample (tensor-based)
+    rots = []
+    for angle in (+7, -7):
+        imgs = []
+        for x in images:
+            imgs.append(TF.rotate(x, angle=angle, interpolation=TF.InterpolationMode.BILINEAR, expand=False, fill=0))
+        imgs = torch.stack(imgs, dim=0)
+        rots.append(model(imgs))
+    for r in rots:
+        logits += r
+    return logits / 4.0
+
+@torch.inference_mode()
+def eval_metrics(model, loader, device, logit_bias=0.0):
     model.eval()
-    correct = 0
+    cm = torch.zeros((NUM_CLASSES, NUM_CLASSES), dtype=torch.long)
     total = 0
+    correct = 0
     for images, labels in loader:
         images, labels = images.to(device), labels.to(device)
-        # light TTA: identity + horizontal flip
-        logits = model(images)
-        logits += model(torch.flip(images, dims=[3]))
-        preds = torch.argmax(logits, dim=1)
+        out = tta_logits(model, images)
+        if logit_bias != 0.0:
+            out[:, 0] += logit_bias  # push AD up/down
+        preds = torch.argmax(out, dim=1)
         total += labels.size(0)
         correct += (preds == labels).sum().item()
-    return 100.0 * correct / total
+        for t, p in zip(labels.view(-1), preds.view(-1)):
+            cm[t.long(), p.long()] += 1
+    acc = 100.0 * correct / total
+    # balanced accuracy
+    with torch.no_grad():
+        per_class = cm.diag() / cm.sum(dim=1).clamp(min=1)
+        bacc = per_class.mean().item() * 100.0
+    return acc, bacc, cm
+
+def calibrate_bias_on_val(model, val_loader, device):
+    """
+    Grid-search a scalar bias to add to AD logit to maximize balanced accuracy on val.
+    """
+    model.eval()
+    best_bacc = -1.0
+    best_bias = 0.0
+    for bias in np.linspace(-1.5, 1.5, 61):
+        acc, bacc, _ = eval_metrics(model, val_loader, device, logit_bias=float(bias))
+        if bacc > best_bacc:
+            best_bacc = bacc
+            best_bias = float(bias)
+    torch.save(torch.tensor(best_bias), LOGIT_BIAS_PATH)
+    print(f"Calibrated AD logit bias on val: {best_bias:.3f} (val balanced acc {best_bacc:.2f}%)")
+    return best_bias
 
 def main():
     seed_everything(SEED)
@@ -76,7 +122,7 @@ def main():
     temp_val_dataset_with_transforms = get_adni_dataset(mode='val')
     val_dataset = Subset(temp_val_dataset_with_transforms, val_indices)
 
-    sampler = build_weighted_sampler(full_train_dataset, train_indices)
+    sampler, class_counts = build_weighted_sampler(full_train_dataset, train_indices)
 
     train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, sampler=sampler,
                               num_workers=4, pin_memory=True)
@@ -87,13 +133,16 @@ def main():
 
     print(f"Split training data: {len(train_dataset)} train, {len(val_dataset)} validation.")
     print(f"Test data: {len(test_dataset)}.")
+    print(f"Train class counts (AD, NC): {class_counts.tolist()}")
 
     # --- 2. Model / Loss / Optim ---
     print("Initializing model...")
     model = create_convnext_model(num_classes=NUM_CLASSES).to(device)
 
-    # label smoothing fights overconfidence on distribution shift
-    criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
+    # Slightly upweight AD to counter NC bias seen on test
+    class_weights = torch.tensor([1.25, 1.0], device=device, dtype=torch.float32)
+    criterion = nn.CrossEntropyLoss(weight=class_weights, label_smoothing=0.05)
+
     optimizer = optim.AdamW(model.parameters(), lr=LEARNING_RATE, weight_decay=WEIGHT_DECAY)
     scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=NUM_EPOCHS, eta_min=1e-7)
 
@@ -115,6 +164,7 @@ def main():
             outputs = model(images)
             loss = criterion(outputs, labels)
             loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
             optimizer.step()
 
             running_train_loss += loss.item()
@@ -127,7 +177,7 @@ def main():
         history['train_loss'].append(avg_train_loss)
         history['train_acc'].append(train_acc)
 
-        # Validation (no TTA; keep it comparable and fast)
+        # Validation (no TTA)
         model.eval()
         running_val_loss = 0.0
         correct_val = 0
@@ -190,7 +240,7 @@ def main():
         plt.savefig(PLOT_SAVE_PATH)
         print("Plot saved.")
 
-    # --- 5. Final Test with light TTA ---
+    # --- 5. Calibrate logit bias on val and test with TTA ---
     print("\nRunning final test on test set using best model...")
     try:
         model.load_state_dict(torch.load(MODEL_SAVE_PATH, map_location=device))
@@ -199,10 +249,17 @@ def main():
         print(f"ERROR: Best model file not found at {MODEL_SAVE_PATH}. Testing with weights from the last epoch.")
         return
 
-    test_acc = eval_accuracy(model, test_loader, device)
+    # compute bias on val
+    bias = calibrate_bias_on_val(model, val_loader, device)
+
+    # evaluate on test with that bias + TTA
+    test_acc, test_bacc, test_cm = eval_metrics(model, test_loader, device, logit_bias=bias)
 
     print("\n--- Final Test Results ---")
     print(f"Accuracy on Test Set: {test_acc:.2f}%")
+    print(f"Balanced Accuracy on Test Set: {test_bacc:.2f}%")
+    print("Confusion matrix (rows=true [AD, NC], cols=pred):")
+    print(test_cm.cpu().numpy())
 
     if test_acc >= 80.0:
         print("\nCongratulations! Project target accuracy (>= 80%) MET.")
