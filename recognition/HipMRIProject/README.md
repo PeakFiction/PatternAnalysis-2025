@@ -126,6 +126,10 @@ It loaded **`best_hipmri_unet.pth`**, segmented a sample from `keras_slices_test
 
 ---
 
+Prediction Result:
+<img width="1405" height="504" alt="prediction_visualization" src="https://github.com/user-attachments/assets/b55d1a39-e89a-4fc0-9d13-87078ef0b24c" />
+
+
 ## 5) Results
 
 **Training:** ~21 epochs before timeout (20-minute limit).
