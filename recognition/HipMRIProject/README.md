@@ -1,6 +1,6 @@
 # 2D HipMRI Prostate Segmentation with an Improved UNet
 
-**Author:** s4906358
+**Author:** Muhammad Sakhran Thayyib, 4906358 / s4906358  
 **Task:** 1.3.3 (Normal Difficulty)
 
 ---
@@ -8,62 +8,79 @@
 ## 1) Problem Description
 
 2D prostate segmentation on the **HipMRI Study on Prostate Cancer** dataset (COMP3710 Task 1.3.3) using an **Improved UNet** to segment multiple organs from 2D T1-weighted MRI slices.
-**Classes:**
 
-* 0: Background
-* 1: Body
-* 2: Bone
-* 3: Bladder
-* 4: Rectum
-* 5: Prostate
+### Classes
+| Label | Class |
+|--------|--------|
+| 0 | Background |
+| 1 | Body |
+| 2 | Bone |
+| 3 | Bladder |
+| 4 | Rectum |
+| 5 | Prostate |
 
-**Benchmark:** Dice Similarity Coefficient (DSC) **≥ 0.75** on the test set for **Prostate (Class 5)**.
+**Benchmark:** Dice Similarity Coefficient (DSC) ≥ **0.75** on the test set for **Prostate (Class 5)**.
 
 ---
 
 ## 2) Algorithm and Implementation
 
 ### Model Architecture
+Defined in `modules.py`, an **Improved UNet** (based on *nnU-Net* principles) with:
 
-Defined in `modules.py`, an Improved UNet with:
+- **DoubleConv Blocks:** Each encoder/decoder stage uses two sequential `(Conv2d → InstanceNorm2d → LeakyReLU)` operations.  
+- **InstanceNorm2d:** Used instead of `BatchNorm2d` to normalize each image individually, improving consistency for medical images with varying contrast.  
+- **LeakyReLU:** Used instead of ReLU for more stable gradients.  
+- **Deep Architecture:** 5 down/upsampling levels with a 1024-channel bottleneck.  
+- **Upsampling:** Decoder uses bilinear upsampling (`mode="bilinear"`) for smooth non-learned scaling.
 
-* **DoubleConv Blocks:** Each encoder/decoder stage uses two sequential `(Conv2d → BatchNorm2d → ReLU)` ops for stability and stronger feature learning.
-* **BatchNorm2d:** After every convolution (before ReLU) to normalize activations and accelerate convergence.
-* **Deep Architecture:** 5 down/upsampling levels with a **1024-channel bottleneck** for large receptive field.
-* **Upsampling:** Decoder uses bilinear upsampling (`mode="bilinear"`) for smooth non-learned scaling.
+---
 
 ### Data Loading and Preprocessing
+Managed by `dataset.py`.
 
-Managed by `dataset.py`:
+**Data Source:**  
+`/home/groups/comp3710/HipMRI_Study_open/keras_slices_data/`
 
-* **Data Source:** `/home/groups/comp3710/HipMRI_Study_open/keras_slices_data/`
-* **Format:** Pre-split **2D NIfTI** (`.nii.gz`)
+**Format:** Pre-split 2D NIfTI (`.nii.gz`)
 
-  * **Images:** `keras_slices_train/`, `keras_slices_validate/`, `keras_slices_test/`
-  * **Masks:** `keras_slices_seg_train/`, `keras_slices_seg_validate/`, `keras_slices_seg_test/`
-* **Loading:** `nibabel`
-* **Preprocessing:**
+**Directories:**
+```
 
-  * **Normalization:** images scaled to **[0, 1]**
-  * **Resizing:** all images/masks → **(256, 128)** via `F.interpolate`
+keras_slices_train/
+keras_slices_validate/
+keras_slices_test/
+keras_slices_seg_train/
+keras_slices_seg_validate/
+keras_slices_seg_test/
 
-    * Images: `mode="bilinear"`
-    * Masks: `mode="nearest"` (preserve integer class labels)
+````
+
+**Loading:** `nibabel`
+
+**Preprocessing:**
+- **Normalization:** Images scaled to `[0, 1]`  
+- **Resizing:** All images/masks → `(256, 128)` using `F.interpolate`  
+  - Images: `mode="bilinear"`  
+  - Masks: `mode="nearest"` (preserves integer class labels)
+
+---
 
 ### Training
+Orchestrated by `train.py` and `test.py`.
 
-Orchestrated by `train.py` and `test.py`:
-
-* **Loss:** `CrossEntropyLoss` for multi-class segmentation
-* **Optimizer:** `Adam`, `lr=1e-4`
-* **Validation & Checkpointing:** evaluate on `keras_slices_validate/` each epoch; save highest **prostate Dice** model to **`best_hipmri_unet.pth`**
-* **Logging:** Slurm stdout captured in `hipmri_unet_*.out`, `hipmri_test_*.out`
+| Component | Configuration |
+|------------|----------------|
+| **Loss** | `CrossEntropyLoss` for multi-class segmentation |
+| **Optimizer** | `Adam`, `lr=1e-4` |
+| **Validation & Checkpointing** | Evaluate on `keras_slices_validate/` each epoch; save highest prostate Dice model to `best_hipmri_unet.pth` |
+| **Logging** | Slurm stdout captured in `hipmri_unet_*.out`, `hipmri_test_*.out` |
 
 ---
 
 ## 3) Dependencies
 
-Conda env (Python 3.11) on Rangpur.
+Conda environment (Python 3.11) on **Rangpur**.
 
 ```bash
 # Activate env
@@ -73,82 +90,95 @@ source ~/miniconda3/bin/activate torch
 conda install -y pip
 
 # PyTorch (CUDA 11.8)
-pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118 --no-cache-dir
+pip install torch torchvision torchaudio \
+  --index-url https://download.pytorch.org/whl/cu118 --no-cache-dir
 
 # Other dependencies
 pip install nibabel
 pip install matplotlib
 pip install numpy
-```
+````
 
 ---
 
 ## 4) How I Ran the Code
 
-### 1) Submitted the training job
+### 1) Submitted the Training Job
 
-I placed all `.py` scripts and `runner_hipmri` in the project directory, made the runner executable, and submitted:
+Placed all `.py` scripts and `runner_hipmri` in the project directory, made the runner executable, and submitted:
 
 ```bash
 chmod +x runner_hipmri
 sbatch runner_hipmri
 ```
 
-I monitored with:
+Monitored progress with:
 
 ```bash
 squeue -u s4906358
 ```
 
-The job hit the cluster’s 20-minute limit after ~21 epochs, but the best validation checkpoint had already been saved as **`best_hipmri_unet.pth`**.
+The job hit the cluster’s **20-minute limit** after ~20 epochs (`hipmri_unet_322320.out`), but the best validation checkpoint (from **Epoch 3**) was already saved as `best_hipmri_unet.pth`.
 
-### 2) Evaluated on the test set
+---
 
-Training was killed before final test, so I created `test.py` and a `runner_test` Slurm file, then ran:
+### 2) Evaluated on the Test Set
+
+Created `test.py` and a `runner_test` Slurm file, then ran:
 
 ```bash
 chmod +x runner_test
 sbatch runner_test
 ```
 
-This loaded **`best_hipmri_unet.pth`**, evaluated on `keras_slices_test/`, and printed class-wise Dice.
+This loaded `best_hipmri_unet.pth`, evaluated on `keras_slices_test/`, and printed class-wise Dice (`hipmri_test_322321.out`).
 
-### 3) Generated predictions (optional visualization)
+---
 
-I produced example masks with:
+### 3) Generated Predictions (Optional Visualization)
+
+Produced example masks with:
 
 ```bash
 # (torch) env active
 python predict.py
 ```
 
-It loaded **`best_hipmri_unet.pth`**, segmented a sample from `keras_slices_test/`, and wrote a comparison image to `predictions/`.
+This loaded `best_hipmri_unet.pth`, segmented a sample from `keras_slices_test/`, and saved `prediction_visualization.png`.
 
 ---
 
-Prediction Result:
-<img width="1405" height="504" alt="prediction_visualization" src="https://github.com/user-attachments/assets/b55d1a39-e89a-4fc0-9d13-87078ef0b24c" />
+## 5) Prediction Result
+
+---<img width="1405" height="504" alt="prediction_visualization" src="https://github.com/user-attachments/assets/68e58dda-367e-488a-9d2b-2b4645dce74d" />
 
 
-## 5) Results
+## 6) Results
 
-**Training:** ~21 epochs before timeout (20-minute limit).
-**Validation (Best, from Epoch 11):**
+**Training:** ~20 epochs before timeout (20-minute limit).
+**Validation (Best, from Epoch 3):**
 
-| Metric             | Value  | Set        |
-| ------------------ | ------ | ---------- |
-| Best Prostate Dice | 0.8171 | Validation |
+| Metric                 | Value  | Set        |
+| ---------------------- | ------ | ---------- |
+| **Best Prostate Dice** | 0.8133 | Validation |
 
-**Test (Best checkpoint from Epoch 11):**
+**Test (Best checkpoint from Epoch 3):**
 
 | Class | Label      | Dice Score |
-| ----: | ---------- | ---------: |
-|     0 | Background |     0.9971 |
-|     1 | Body       |     0.9849 |
-|     2 | Bone       |     0.9296 |
-|     3 | Bladder    |     0.9355 |
-|     4 | Rectum     |     0.8626 |
-|     5 | Prostate   | **0.8362** |
+| ----- | ---------- | ---------- |
+| 0     | Background | 0.9970     |
+| 1     | Body       | 0.9847     |
+| 2     | Bone       | 0.9245     |
+| 3     | Bladder    | 0.9518     |
+| 4     | Rectum     | 0.8696     |
+| 5     | Prostate   | 0.8400     |
 
-**Discussion:** Requirement: prostate Dice ≥ 0.75 on test. Achieved **0.8362**. The Improved UNet with `BatchNorm2d` and `CrossEntropyLoss` was effective. Best model emerged early (Epoch 11) and generalized well.
+---
 
+## Discussion
+
+**Requirement:** Prostate Dice ≥ 0.75 on test
+**Achieved:** 0.8400 ✅
+
+The **Improved UNet**, using `InstanceNorm2d` and `LeakyReLU`, proved highly effective.
+The best model emerged very early (**Epoch 3**) and generalized extremely well to the test set, exceeding the target benchmark.
