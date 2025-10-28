@@ -1,0 +1,35 @@
+Starting ADNI Training job 321431 on a100-a
+Loading Conda environment...
+Conda environment activated. Running Python training script...
+Using device: cuda
+Loading datasets...
+Loaded 21520 images for mode 'train' from /home/groups/comp3710/ADNI/AD_NC/train
+Class mapping: {'AD': 0, 'NC': 1}
+Loaded 9000 images for mode 'test' from /home/groups/comp3710/ADNI/AD_NC/test
+Class mapping: {'AD': 0, 'NC': 1}
+Loaded 21520 images for mode 'val' from /home/groups/comp3710/ADNI/AD_NC/train
+Class mapping: {'AD': 0, 'NC': 1}
+Split training data: 18292 train, 3228 validation.
+Test data: 9000.
+Initializing model...
+Loaded ConvNeXt Tiny. Replaced classifier head for 2 classes.
+Starting training for 10 epochs...
+Epoch [1/10] | Train Loss: 0.5119 | Train Acc: 76.82% | Val Loss: 0.3437 | Val Acc: 90.83% | LR: 4.9e-05
+  -> New best model saved to best_adni_convnext.pth (Val Acc: 90.83%)
+Epoch [2/10] | Train Loss: 0.3264 | Train Acc: 92.25% | Val Loss: 0.3322 | Val Acc: 92.57% | LR: 4.5e-05
+  -> New best model saved to best_adni_convnext.pth (Val Acc: 92.57%)
+Epoch [3/10] | Train Loss: 0.2761 | Train Acc: 95.40% | Val Loss: 0.2455 | Val Acc: 97.21% | LR: 4.0e-05
+  -> New best model saved to best_adni_convnext.pth (Val Acc: 97.21%)
+Epoch [4/10] | Train Loss: 0.2491 | Train Acc: 96.97% | Val Loss: 0.2690 | Val Acc: 95.91% | LR: 3.3e-05
+Epoch [5/10] | Train Loss: 0.2353 | Train Acc: 97.90% | Val Loss: 0.2467 | Val Acc: 97.12% | LR: 2.5e-05
+Epoch [6/10] | Train Loss: 0.2246 | Train Acc: 98.46% | Val Loss: 0.2313 | Val Acc: 98.20% | LR: 1.7e-05
+  -> New best model saved to best_adni_convnext.pth (Val Acc: 98.20%)
+Epoch [7/10] | Train Loss: 0.2126 | Train Acc: 99.19% | Val Loss: 0.2144 | Val Acc: 99.16% | LR: 1.0e-05
+  -> New best model saved to best_adni_convnext.pth (Val Acc: 99.16%)
+Epoch [8/10] | Train Loss: 0.2079 | Train Acc: 99.45% | Val Loss: 0.2140 | Val Acc: 99.16% | LR: 4.9e-06
+Epoch [9/10] | Train Loss: 0.2043 | Train Acc: 99.71% | Val Loss: 0.2126 | Val Acc: 99.23% | LR: 1.3e-06
+  -> New best model saved to best_adni_convnext.pth (Val Acc: 99.23%)
+Epoch [10/10] | Train Loss: 0.2027 | Train Acc: 99.75% | Val Loss: 0.2116 | Val Acc: 99.32% | LR: 1.0e-07
+  -> New best model saved to best_adni_convnext.pth (Val Acc: 99.32%)
+Training finished.
+Job finished

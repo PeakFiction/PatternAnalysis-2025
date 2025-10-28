@@ -1,0 +1,7 @@
+Traceback (most recent call last):
+  File "/home/Student/s4906358/finalProject/PatternAnalysis-2025/recognition/ADNIProject/train.py", line 278, in <module>
+    main()
+  File "/home/Student/s4906358/finalProject/PatternAnalysis-2025/recognition/ADNIProject/train.py", line 213, in main
+    if plt:
+       ^^^
+UnboundLocalError: cannot access local variable 'plt' where it is not associated with a value

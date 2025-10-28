@@ -25,3 +25,22 @@ Epoch [4/10] | Train Loss: 0.2739 | Train Acc: 95.47% | Val Loss: 0.2432 | Val A
   -> New best model saved to best_adni_convnext.pth (Val Acc: 97.24%)
 Epoch [5/10] | Train Loss: 0.2586 | Train Acc: 96.42% | Val Loss: 0.2490 | Val Acc: 96.96% | LR: 1.5e-05
 Epoch [6/10] | Train Loss: 0.2395 | Train Acc: 97.50% | Val Loss: 0.2484 | Val Acc: 97.03% | LR: 1.0e-05
+Epoch [7/10] | Train Loss: 0.2283 | Train Acc: 98.25% | Val Loss: 0.2158 | Val Acc: 99.01% | LR: 6.3e-06
+  -> New best model saved to best_adni_convnext.pth (Val Acc: 99.01%)
+Epoch [8/10] | Train Loss: 0.2182 | Train Acc: 98.90% | Val Loss: 0.2150 | Val Acc: 99.04% | LR: 3.0e-06
+  -> New best model saved to best_adni_convnext.pth (Val Acc: 99.04%)
+Epoch [9/10] | Train Loss: 0.2124 | Train Acc: 99.23% | Val Loss: 0.2104 | Val Acc: 99.38% | LR: 8.3e-07
+  -> New best model saved to best_adni_convnext.pth (Val Acc: 99.38%)
+Epoch [10/10] | Train Loss: 0.2086 | Train Acc: 99.49% | Val Loss: 0.2101 | Val Acc: 99.38% | LR: 1.0e-07
+Training finished.
+Saving learning curves to learning_curves_adni.png...
+Plot saved.
+
+Running final test on test set using best model...
+Loaded best model weights from best_adni_convnext.pth for final testing.
+
+--- Final Test Results ---
+Accuracy on Test Set: 76.24% (6862/9000)
+
+Project target accuracy (>= 80%) NOT MET. Further tuning or more epochs may be needed.
+Job finished

@@ -1,0 +1,17 @@
+Starting ADNI Evaluation job 321459 on a100-b
+Loading Conda environment...
+Conda environment activated. Running Python evaluation script...
+Device: cuda
+Loaded 9000 images for mode 'test' from /home/groups/comp3710/ADNI/AD_NC/test
+Class mapping: {'AD': 0, 'NC': 1}
+Loaded ConvNeXt Tiny. Replaced classifier head for 2 classes.
+Loaded weights: best_adni_convnext.pth
+
+--- Final Test Results ---
+Accuracy on Test Set: 74.71%
+Confusion matrix (rows=true [AD, NC], cols=pred):
+[[2299 2161]
+ [ 115 4425]]
+
+Project target NOT MET (>= 80%).
+Evaluation job finished
