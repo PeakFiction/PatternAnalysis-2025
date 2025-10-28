@@ -1,7 +1,0 @@
-/home/Student/s4906358/finalProject/PatternAnalysis-2025/recognition/finalProject/train.py:69: FutureWarning: `torch.cuda.amp.GradScaler(args...)` is deprecated. Please use `torch.amp.GradScaler('cuda', args...)` instead.
-  scaler = torch.cuda.amp.GradScaler() # For mixed-precision training
-/home/Student/s4906358/finalProject/PatternAnalysis-2025/recognition/finalProject/train.py:84: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
-  with torch.cuda.amp.autocast():
-/home/Student/s4906358/finalProject/PatternAnalysis-2025/recognition/finalProject/train.py:130: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
-  with torch.cuda.amp.autocast():
-slurmstepd: error: *** JOB 320819 ON a100-a CANCELLED AT 2025-10-24T23:42:56 DUE TO TIME LIMIT ***
